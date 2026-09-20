@@ -91,6 +91,8 @@ export const ReportProblemPage: React.FC = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(
     draft.photoData || null
   );
+  const [interimTranscript, setInterimTranscript] =
+  useState('');
 
   const [isListening, setIsListening] = useState(false);
 
@@ -346,84 +348,56 @@ export const ReportProblemPage: React.FC = () => {
       // RECOGNIZED SPEECH
       // --------------------------------------------------------
 
-      recognition.onresult = (
-        event: any
-      ) => {
-        let recognizedText = '';
+      recognition.onresult = (event: any) => {
+          let finalText = '';
+          let interimText = '';
 
-        for (
-          let i = event.resultIndex;
-          i < event.results.length;
-          i++
-        ) {
-          const result =
-            event.results[i];
+          for (
+            let i = event.resultIndex;
+            i < event.results.length;
+            i++
+          ) {
+          const result = event.results[i];
 
-          if (!result) {
-            continue;
-          }
+          if (!result) continue;
 
-          /*
-           * Only use FINAL results.
-           *
-           * This prevents interim speech from being
-           * inserted repeatedly into the textarea.
-           */
+          const transcript =
+            result[0]?.transcript?.trim() || '';
+
           if (result.isFinal) {
-            const transcript =
-              result[0]?.transcript?.trim() ||
-              '';
-
-            if (transcript) {
-              recognizedText +=
-                `${transcript} `;
-            }
+            finalText += transcript + ' ';
+          } else {
+            interimText += transcript + ' ';
           }
         }
 
-        recognizedText =
-          recognizedText.trim();
+        finalText = finalText.trim();
+        interimText = interimText.trim();
 
-        if (!recognizedText) {
-          return;
-        }
+        // Show words immediately while speaking
+          setInterimTranscript(interimText);
 
-        console.log(
-          'Nirmaan recognized:',
-          recognizedText
-        );
-
-        /*
-         * IMPORTANT:
-         *
-         * Nothing is predefined here.
-         *
-         * Whatever the user actually says is
-         * inserted into Description.
-         */
-        setForm((current) => {
+        // Save confirmed speech into Description
+          if (finalText) {
+          setForm((current) => {
           const oldDescription =
-            current.description?.trim() ||
-            '';
+            current.description?.trim() || '';
 
-          const newDescription =
-            oldDescription
-              ? `${oldDescription} ${recognizedText}`
-              : recognizedText;
+            const newDescription = oldDescription
+            ? `${oldDescription} ${finalText}`
+            : finalText;
 
-          saveDraft({
-            description:
-              newDescription
+            saveDraft({
+            description: newDescription
           });
 
-          return {
-            ...current,
-            description:
-              newDescription
-          };
-        });
+           return {
+                ...current,
+                description: newDescription
+           };
+           });
+         }
       };
-
       // --------------------------------------------------------
       // ERROR
       // --------------------------------------------------------
