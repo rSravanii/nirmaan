@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: nirmaan-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: ALLOW_MEMORY_DB_FALLBACK
+        value: "false"
+
+      - key: AI_PROVIDER
+        value: auto
+
+      - key: DEMO_MODE
+        value: "true"
+
+      - key: CLIENT_URL
+        sync: false
+
+      - key: MONGODB_URI
+        sync: false
+
+      - key: JWT_SECRET
+        generateValue: true
+
+      - key: AI_API_KEY
+        sync: false

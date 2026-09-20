@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { searchKnowledge, reviewKnowledgeMatch, listKnowledge, backfillKnowledge } from '../controllers/knowledgeController.js';
+const router=Router();
+router.use(authenticateToken, requireRole(['ADMIN']));
+router.get('/search', searchKnowledge);
+router.get('/', listKnowledge);
+router.post('/matches/review', reviewKnowledgeMatch);
+router.post('/backfill', backfillKnowledge);
+export default router;
