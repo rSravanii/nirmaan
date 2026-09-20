@@ -1267,6 +1267,73 @@ export const ReportProblemPage: React.FC = () => {
         </div>
 
       </form>
+      {submissionResult && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl text-green-600">
+          ✓
+        </div>
+
+        <h2 className="text-2xl font-bold text-gray-900">
+          Report Submitted Successfully!
+        </h2>
+
+        <p className="mt-2 text-sm text-gray-600">
+          Your report has been successfully registered with Nirmaan.
+        </p>
+      </div>
+
+      <div className="mt-6 rounded-xl bg-gray-50 p-4">
+        <p className="text-sm text-gray-500">
+          Report ID
+        </p>
+
+        <p className="mt-1 break-all font-semibold text-gray-900">
+          {submissionResult.reportId ||
+            submissionResult.problem?._id ||
+            submissionResult.problem?.id ||
+            submissionResult.id ||
+            'Report registered'}
+        </p>
+
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-sm text-gray-500">
+            Status
+          </span>
+
+          <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
+            Submitted
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-6 flex gap-3">
+
+        <button
+          type="button"
+          onClick={() => setSubmissionResult(null)}
+          className="flex-1 rounded-xl border border-gray-300 px-4 py-3 font-medium text-gray-700"
+        >
+          Close
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSubmissionResult(null);
+            window.location.href = '/my-reports';
+          }}
+          className="flex-1 rounded-xl bg-green-600 px-4 py-3 font-medium text-white"
+        >
+          Track My Report
+        </button>
+
+           </div>
+          </div>
+      </div>
+     )}
 
     </div>
   );
