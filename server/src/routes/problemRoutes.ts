@@ -5,7 +5,8 @@ import {
   getProblemById,
   verifyProblem,
   claimProblem,
-  getProblemMatches
+  getProblemMatches,
+  getMyReports
 } from '../controllers/problemController.js';
 import { authenticateToken, optionalAuth, requireRole } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
@@ -14,6 +15,7 @@ const router = Router();
 
 router.post('/', optionalAuth, upload.array('photos', 5), createProblemReport);
 router.get('/', getProblems);
+router.get('/my-reports', authenticateToken, getMyReports);
 router.get('/:id', optionalAuth, getProblemById);
 router.post('/:id/verify', authenticateToken, requireRole(['EVALUATOR', 'ADMIN']), verifyProblem);
 router.post('/:id/claim', authenticateToken, requireRole(['STUDENT', 'PROFESSOR', 'ADMIN']), claimProblem);

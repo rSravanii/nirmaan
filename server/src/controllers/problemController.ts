@@ -522,3 +522,35 @@ export async function getProblemMatches(req: Request, res: Response): Promise<vo
     res.status(500).json({ success: false, message: 'Server error calculating researcher matches' });
   }
 }
+export async function getMyReports(
+  req: AuthRequest,
+  res: Response
+): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+      return;
+    }
+
+    const reports = await ProblemReport.find({
+      reportedBy: req.user._id
+    })
+      .populate('claimedByProjectId')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      reports
+    });
+  } catch (err: any) {
+    console.error('Error fetching my reports:', err);
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch your reports'
+    });
+  }
+}
