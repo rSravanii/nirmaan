@@ -1,10 +1,14 @@
 import React from 'react';
-import { ProblemStatusHistoryEntry } from '../types/index.js';
+import { ProblemStatus, ProblemStatusHistoryEntry } from '../types/index.js';
 import { getTrackingStatus, trackingToneClasses } from '../utils/reportTracking.js';
 
-export const ReportStatusTimeline: React.FC<{ history?: ProblemStatusHistoryEntry[] }> = ({ history }) => {
-  if (!history?.length) return <p className="text-sm text-slate-500">No status updates have been recorded yet.</p>;
-  const entries = [...history].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+export const ReportStatusTimeline: React.FC<{ history?: ProblemStatusHistoryEntry[]; currentStatus: ProblemStatus }> = ({ history, currentStatus }) => {
+  const entries = Array.isArray(history) ? [...history] : [];
+  if (!entries.length) {
+    const current = getTrackingStatus(currentStatus);
+    return <p className="text-sm text-slate-500">This existing report has no recorded status history. Its current status is <span className="font-semibold text-slate-700">{current.label}</span>.</p>;
+  }
+  entries.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   return <ol className="space-y-4">
     {entries.map((entry, index) => {
       const stage = getTrackingStatus(entry.status);

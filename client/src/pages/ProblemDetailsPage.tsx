@@ -42,7 +42,9 @@ export const ProblemDetailsPage: React.FC = () => {
     setLoading(true); setError('');
     const res = await apiRequest(`/problems/${id}`);
     if (res.success && res.report) {
-      setProblem(res.report);
+      // The API envelope is { success, report }; history belongs to that report.
+      // Normalise only absent legacy history to an empty list; never synthesize it.
+      setProblem({ ...res.report, statusHistory: Array.isArray(res.report.statusHistory) ? res.report.statusHistory : [] });
       setProjectTitle(`Engineering Resolution: ${res.report.title}`);
       setProjectDesc(`Student team technical project addressing "${res.report.title}" in ${res.report.district}.`);
     } else setError(res.message || 'Unable to load this report.');
@@ -219,7 +221,7 @@ export const ProblemDetailsPage: React.FC = () => {
           <section className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6">
             <h2 className="text-lg font-black text-slate-900">Status Timeline</h2>
             <p className="mt-1 text-sm text-slate-600">Only recorded report updates are shown.</p>
-            <div className="mt-5"><ReportStatusTimeline history={problem.statusHistory} /></div>
+            <div className="mt-5"><ReportStatusTimeline history={problem.statusHistory} currentStatus={problem.status} /></div>
           </section>
 
           {/* Evaluator Verification Action Panel */}
