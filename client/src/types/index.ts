@@ -9,6 +9,8 @@ export type UserRole =
   | 'COMPANY';
 
 export type SupportedLanguage = 'en' | 'hi' | 'te' | 'sat' | 'mun' | 'ho';
+export type ProblemStatus = 'OPEN' | 'VERIFIED' | 'CLAIMED' | 'IN_PROGRESS' | 'SUBMITTED' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED';
+export interface ProblemStatusHistoryEntry { status: ProblemStatus; note: string; updatedAt: string; updatedBy?: { _id: string; name?: string; role?: string }; }
 
 export interface User {
   id: string;
@@ -59,11 +61,12 @@ export interface ProblemReport {
   };
   duplicateConfidence?: number;
   isDuplicate: boolean;
-  status: 'OPEN' | 'VERIFIED' | 'CLAIMED' | 'IN_PROGRESS' | 'SUBMITTED' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED';
+  status: ProblemStatus;
   verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
   verifiedBy?: string;
   verificationNotes?: string;
-  claimedByProjectId?: string;
+  claimedByProjectId?: Project | string;
+  statusHistory?: ProblemStatusHistoryEntry[];
   tags: string[];
   suggestedDomains: string[];
   upvotes: number;
@@ -74,6 +77,7 @@ export interface ProblemReport {
     extractedEntities: string[];
   };
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ProjectMilestone {

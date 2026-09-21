@@ -831,24 +831,20 @@ export const ReportProblemPage: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setSubmissionResult(null)
-                  }
+                  onClick={() => setSubmissionResult(null)}
                   className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors"
                 >
-                  Submit Another Report
+                  Close
                 </button>
 
                 <button
                   type="button"
                   onClick={() =>
-                    navigate(
-                      `/problems/${submissionResult.report?._id}`
-                    )
+                    navigate(`/my-reports?reportId=${submissionResult.report?._id}`)
                   }
                   className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-emerald-300 text-emerald-800 text-xs font-bold transition-colors"
                 >
-                  View Details & Smart Matches
+                  Track My Report
                 </button>
 
               </div>

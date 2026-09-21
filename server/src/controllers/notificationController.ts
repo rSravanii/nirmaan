@@ -32,7 +32,16 @@ export async function getNotifications(req: AuthRequest, res: Response): Promise
 export async function markNotificationRead(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { id } = req.params;
-    const notif = await Notification.findByIdAndUpdate(id, { read: true }, { new: true });
+    const notif = await Notification.findOneAndUpdate(
+      { _id: id, recipientId: req.user!._id },
+      { read: true },
+      { new: true },
+    );
+
+    if (!notif) {
+      res.status(404).json({ success: false, message: 'Notification not found' });
+      return;
+    }
 
     res.status(200).json({ success: true, notification: notif });
   } catch (err: any) {

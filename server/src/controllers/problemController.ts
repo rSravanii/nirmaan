@@ -13,6 +13,7 @@ import { smartMatchingEngine } from '../services/matching/index.js';
 import { createAndSendNotification } from '../services/notifications/index.js';
 import { logActivity } from '../utils/activity.js';
 import { sanitizePublicSummary, maskPhoneNumber, maskEmail } from '../utils/privacy.js';
+import { appendProblemStatus } from '../utils/problemStatus.js';
 
 export async function createProblemReport(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -144,6 +145,12 @@ export async function createProblemReport(req: AuthRequest, res: Response): Prom
       duplicateConfidence: dedupResult.highestSimilarity,
       isDuplicate: dedupResult.isDuplicate,
       status: 'OPEN',
+      statusHistory: [{
+        status: 'OPEN',
+        note: 'Report submitted and awaiting authority verification.',
+        updatedBy: req.user?._id,
+        updatedAt: new Date(),
+      }],
       verificationStatus: 'PENDING',
       embedding,
       tags: aiAnalysis.tags,
@@ -320,6 +327,13 @@ export async function getProblemById(req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    // Citizen tracking is private: a citizen may only inspect their own report.
+    // Other existing public, evaluator, and administrator workflows remain intact.
+    if (req.user?.role === 'CITIZEN' && (!report.reportedBy || !report.reportedBy.equals(req.user._id))) {
+      res.status(403).json({ success: false, message: 'You can only access reports that you submitted.' });
+      return;
+    }
+
     // Privacy mask if user is not ADMIN or EVALUATOR
     const isPrivileged = req.user && ['ADMIN', 'EVALUATOR'].includes(req.user.role);
     if (!isPrivileged && report.isAnonymous) {
@@ -349,15 +363,17 @@ export async function verifyProblem(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    const verificationNote = remarks || (status === 'VERIFIED' ? 'Field verification confirmed by authority.' : 'Report dismissed.');
     report.verificationStatus = status;
-    report.status = status === 'VERIFIED' ? 'VERIFIED' : 'REJECTED';
     report.verifiedBy = req.user?._id;
-    report.verificationNotes = remarks || (status === 'VERIFIED' ? 'Field verification confirmed by authority.' : 'Report dismissed.');
+    report.verificationNotes = verificationNote;
+    appendProblemStatus(report, status, verificationNote, req.user?._id);
     await report.save();
 
-    // Reward citizen for verified report
-    if (status === 'VERIFIED' && report.reportedBy) {
-      await User.findByIdAndUpdate(report.reportedBy, { $inc: { impactPoints: 25 } });
+    // Reward and notify the original citizen after an authority decision.
+    if (report.reportedBy) {
+      if (status === 'VERIFIED') {
+        await User.findByIdAndUpdate(report.reportedBy, { $inc: { impactPoints: 25 } });
       await Reward.create({
         userId: report.reportedBy,
         points: 25,
@@ -366,12 +382,17 @@ export async function verifyProblem(req: AuthRequest, res: Response): Promise<vo
         relatedId: report._id,
       });
 
+      }
+
       await createAndSendNotification({
         recipientId: report.reportedBy,
-        title: 'Report Verified!',
-        message: `Your report "${report.title}" in ${report.district} has been verified by the authority. You earned 25 Impact Points!`,
-        type: 'SUCCESS',
-        link: `/problems/${report._id}`
+        title: status === 'VERIFIED' ? 'Report Verified!' : 'Report Rejected',
+        message: status === 'VERIFIED'
+          ? `Your report "${report.title}" in ${report.district} has been verified by the authority. You earned 25 Impact Points!`
+          : `Your report "${report.title}" was not approved. ${verificationNote}`,
+        type: status === 'VERIFIED' ? 'SUCCESS' : 'WARNING',
+        link: `/my-reports?reportId=${report._id}`,
+        metadata: { reportId: report._id.toString(), status },
       });
     }
 
@@ -445,7 +466,12 @@ export async function claimProblem(req: AuthRequest, res: Response): Promise<voi
     await project.save();
 
     // Update Report status
-    report.status = 'CLAIMED';
+    appendProblemStatus(
+      report,
+      'CLAIMED',
+      `Claimed by ${project.institution} for project "${project.title}".`,
+      req.user._id,
+    );
     report.claimedByProjectId = project._id as any;
     await report.save();
 
@@ -466,7 +492,8 @@ export async function claimProblem(req: AuthRequest, res: Response): Promise<voi
         title: 'Your Report Has Been Claimed!',
         message: `A university engineering team from ${project.institution} has claimed your report "${report.title}" and started work!`,
         type: 'SUCCESS',
-        link: `/projects/${project._id}`
+        link: `/my-reports?reportId=${report._id}`,
+        metadata: { reportId: report._id.toString(), status: 'CLAIMED' },
       });
     }
 

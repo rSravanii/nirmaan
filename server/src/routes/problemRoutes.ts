@@ -15,6 +15,7 @@ const router = Router();
 
 router.post('/', optionalAuth, upload.array('photos', 5), createProblemReport);
 router.get('/', getProblems);
+router.get('/mine', authenticateToken, getMyReports);
 router.get('/my-reports', authenticateToken, getMyReports);
 router.get('/:id', optionalAuth, getProblemById);
 router.post('/:id/verify', authenticateToken, requireRole(['EVALUATOR', 'ADMIN']), verifyProblem);

@@ -92,6 +92,8 @@ export const Navbar: React.FC = () => {
               </Link>
             )}
 
+            {user?.role === 'CITIZEN' && <Link to="/my-reports" className={`px-3 py-2 rounded-lg text-sm font-medium ${isActive('/my-reports') ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-600 hover:bg-slate-100'}`}>My Reports</Link>}
+
             {user?.role === 'STUDENT' && (
               <>
                 <Link
@@ -270,6 +272,7 @@ export const Navbar: React.FC = () => {
           >
             {t.nav.reportProblem}
           </Link>
+          {user?.role === 'CITIZEN' && <Link to="/my-reports" onClick={() => setMobileMenuOpen(false)} className="block px-3 py-2 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-100">My Reports</Link>}
           <Link
             to="/student"
             onClick={() => setMobileMenuOpen(false)}

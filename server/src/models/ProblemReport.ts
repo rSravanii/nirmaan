@@ -1,6 +1,13 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import { ProblemCategory, ProblemSeverity, ProblemStatus, SupportedLanguage } from '../types/index.js';
 
+export interface IProblemStatusHistoryEntry {
+  status: ProblemStatus;
+  note: string;
+  updatedBy?: mongoose.Types.ObjectId;
+  updatedAt: Date;
+}
+
 export interface IProblemReport extends Document {
   title: string;
   description: string;
@@ -34,6 +41,7 @@ export interface IProblemReport extends Document {
   verifiedBy?: mongoose.Types.ObjectId;
   verificationNotes?: string;
   claimedByProjectId?: mongoose.Types.ObjectId;
+  statusHistory: IProblemStatusHistoryEntry[];
   embedding?: number[];
   tags: string[];
   suggestedDomains: string[];
@@ -102,6 +110,16 @@ const ProblemReportSchema = new Schema<IProblemReport>(
     verifiedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     verificationNotes: { type: String },
     claimedByProjectId: { type: Schema.Types.ObjectId, ref: 'Project' },
+    statusHistory: [{
+      status: {
+        type: String,
+        enum: ['OPEN', 'VERIFIED', 'CLAIMED', 'IN_PROGRESS', 'SUBMITTED', 'UNDER_REVIEW', 'RESOLVED', 'REJECTED'],
+        required: true,
+      },
+      note: { type: String, required: true, trim: true },
+      updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+      updatedAt: { type: Date, required: true, default: Date.now },
+    }],
     embedding: [{ type: Number }],
     tags: [{ type: String }],
     suggestedDomains: [{ type: String }],

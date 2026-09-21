@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ProblemReport, ResearcherMatch } from '../types/index.js';
 import { useAuth } from '../context/AuthContext.js';
+import { useSocket } from '../context/SocketContext.js';
 import { apiRequest, resolveAssetUrl } from '../api/client.js';
+import { ReportStatusTimeline } from '../components/ReportStatusTimeline.js';
+import { getTrackingStatus, getVerificationLabel, trackingToneClasses } from '../utils/reportTracking.js';
 import {
   MapPin,
   Calendar,
@@ -21,6 +24,7 @@ import {
 export const ProblemDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { socket } = useSocket();
   const navigate = useNavigate();
 
   const [problem, setProblem] = useState<ProblemReport | null>(null);
@@ -31,26 +35,39 @@ export const ProblemDetailsPage: React.FC = () => {
   const [projectDesc, setProjectDesc] = useState('');
   const [isClaiming, setIsClaiming] = useState(false);
   const [evaluatorNotes, setEvaluatorNotes] = useState('');
+  const [error, setError] = useState('');
+
+  const loadProblem = async () => {
+    if (!id) return;
+    setLoading(true); setError('');
+    const res = await apiRequest(`/problems/${id}`);
+    if (res.success && res.report) {
+      setProblem(res.report);
+      setProjectTitle(`Engineering Resolution: ${res.report.title}`);
+      setProjectDesc(`Student team technical project addressing "${res.report.title}" in ${res.report.district}.`);
+    } else setError(res.message || 'Unable to load this report.');
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
-
-    apiRequest(`/problems/${id}`).then((res) => {
-      if (res.success && res.report) {
-        setProblem(res.report);
-        setProjectTitle(`Engineering Resolution: ${res.report.title}`);
-        setProjectDesc(`Student team technical project addressing "${res.report.title}" in ${res.report.district}.`);
-      }
-    });
+    void loadProblem();
 
     apiRequest(`/problems/${id}/matches`).then((res) => {
       if (res.success && res.matches) {
         setMatches(res.matches);
       }
-      setLoading(false);
     });
   }, [id]);
+
+  useEffect(() => {
+    if (!socket || !id) return;
+    const onNotification = (notification: { metadata?: { reportId?: string } }) => {
+      if (notification.metadata?.reportId === id) void loadProblem();
+    };
+    socket.on('notification', onNotification);
+    return () => { socket.off('notification', onNotification); };
+  }, [socket, id]);
 
   const handleClaim = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +120,7 @@ export const ProblemDetailsPage: React.FC = () => {
   if (!problem) {
     return (
       <div className="text-center py-20">
-        <h2 className="text-lg font-bold text-slate-800">Problem not found</h2>
+        <h2 className="text-lg font-bold text-slate-800">{error || 'Problem not found'}</h2>
         <Link to="/explore" className="text-emerald-600 text-sm font-semibold underline mt-2 block">
           Return to Explore
         </Link>
@@ -124,19 +141,8 @@ export const ProblemDetailsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ${
-            problem.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-800' :
-            problem.status === 'CLAIMED' || problem.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-            problem.status === 'RESOLVED' ? 'bg-purple-100 text-purple-800' : 'bg-amber-100 text-amber-800'
-          }`}>
-            Status: {problem.status}
-          </span>
-          {problem.verificationStatus === 'VERIFIED' && (
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Authority Verified
-            </span>
-          )}
+          <span className={`px-3 py-1 rounded-full border text-xs font-extrabold ${trackingToneClasses[getTrackingStatus(problem.status).tone]}`}>Current: {getTrackingStatus(problem.status).label}</span>
+          <span className={`px-3 py-1 rounded-full border text-xs font-extrabold ${trackingToneClasses[getVerificationLabel(problem).tone]}`}>Verification: {getVerificationLabel(problem).label}</span>
         </div>
       </div>
 
@@ -210,6 +216,12 @@ export const ProblemDetailsPage: React.FC = () => {
             )}
           </div>
 
+          <section className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6">
+            <h2 className="text-lg font-black text-slate-900">Status Timeline</h2>
+            <p className="mt-1 text-sm text-slate-600">Only recorded report updates are shown.</p>
+            <div className="mt-5"><ReportStatusTimeline history={problem.statusHistory} /></div>
+          </section>
+
           {/* Evaluator Verification Action Panel */}
           {user?.role === 'EVALUATOR' && problem.verificationStatus === 'PENDING' && (
             <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-3">
@@ -247,6 +259,15 @@ export const ProblemDetailsPage: React.FC = () => {
 
         {/* Right Column: Smart Matching Engine & Claim CTA (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
+          {typeof problem.claimedByProjectId === 'object' && problem.claimedByProjectId && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h2 className="font-black text-slate-900">Project Information</h2>
+              <p className="mt-2 text-sm font-bold">{problem.claimedByProjectId.title}</p>
+              <p className="mt-1 text-sm text-slate-600">{problem.claimedByProjectId.institution} · {problem.claimedByProjectId.status}</p>
+              {problem.claimedByProjectId.solutionSummary && <p className="mt-3 text-sm text-slate-700">{problem.claimedByProjectId.solutionSummary}</p>}
+              {problem.status === 'RESOLVED' && <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{problem.verificationNotes || problem.claimedByProjectId.evaluatorRemarks || 'Resolution verified.'}</p>}
+            </section>
+          )}
           {/* Action Box: Claim problem */}
           <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-2xl p-6 shadow-lg space-y-4">
             <div>

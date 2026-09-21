@@ -9,6 +9,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import { createAndSendNotification } from '../services/notifications/index.js';
 import { logActivity } from '../utils/activity.js';
 import { createKnowledgeFromProject } from '../services/knowledge/index.js';
+import { appendProblemStatus } from '../utils/problemStatus.js';
 
 export async function createProject(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -37,9 +38,25 @@ export async function createProject(req: AuthRequest, res: Response): Promise<vo
       status: 'IN_PROGRESS',
     });
 
-    report.status = 'IN_PROGRESS';
+    appendProblemStatus(
+      report,
+      'IN_PROGRESS',
+      `A project, "${project.title}", has been assigned and work is starting.`,
+      req.user._id,
+    );
     report.claimedByProjectId = project._id as any;
     await report.save();
+
+    if (report.reportedBy) {
+      await createAndSendNotification({
+        recipientId: report.reportedBy,
+        title: 'Project Work Started',
+        message: `A project team has started work on your report "${report.title}".`,
+        type: 'SUCCESS',
+        link: `/my-reports?reportId=${report._id}`,
+        metadata: { reportId: report._id.toString(), status: 'IN_PROGRESS' },
+      });
+    }
 
     await logActivity({
       userId: req.user._id,
@@ -146,6 +163,27 @@ export async function addProjectMilestone(req: AuthRequest, res: Response): Prom
     project.status = 'IN_PROGRESS';
     await project.save();
 
+    const report = await ProblemReport.findById(project.problemReportId);
+    if (report && report.status !== 'IN_PROGRESS') {
+      appendProblemStatus(
+        report,
+        'IN_PROGRESS',
+        `Project work is in progress: milestone "${milestone.title}" was submitted.`,
+        req.user?._id,
+      );
+      await report.save();
+      if (report.reportedBy) {
+        await createAndSendNotification({
+          recipientId: report.reportedBy,
+          title: 'Project Work In Progress',
+          message: `Work has progressed on your report "${report.title}".`,
+          type: 'INFO',
+          link: `/my-reports?reportId=${report._id}`,
+          metadata: { reportId: report._id.toString(), status: 'IN_PROGRESS' },
+        });
+      }
+    }
+
     await logActivity({
       userId: req.user?._id,
       userName: req.user?.name || 'Student',
@@ -237,6 +275,33 @@ export async function submitProjectSolution(req: AuthRequest, res: Response): Pr
     project.demoUrl = demoUrl;
     await project.save();
 
+    const report = await ProblemReport.findById(project.problemReportId);
+    if (report) {
+      appendProblemStatus(
+        report,
+        'SUBMITTED',
+        `The solution for project "${project.title}" was submitted.`,
+        req.user?._id,
+      );
+      appendProblemStatus(
+        report,
+        'UNDER_REVIEW',
+        `The proposed solution for project "${project.title}" was submitted for final authority review.`,
+        req.user?._id,
+      );
+      await report.save();
+      if (report.reportedBy) {
+        await createAndSendNotification({
+          recipientId: report.reportedBy,
+          title: 'Solution Submitted for Verification',
+          message: `A solution for your report "${report.title}" has been submitted for government verification.`,
+          type: 'INFO',
+          link: `/my-reports?reportId=${report._id}`,
+          metadata: { reportId: report._id.toString(), status: 'UNDER_REVIEW' },
+        });
+      }
+    }
+
     await logActivity({
       userId: req.user?._id,
       userName: req.user?.name || 'Student',
@@ -265,19 +330,40 @@ export async function verifyProject(req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    const resolutionNote = remarks || 'Impact verified on-site. Problem effectively resolved.';
     project.status = 'VERIFIED';
     project.impactScore = impactScore;
     project.impactPointsAwarded = 100;
     project.verifiedBy = req.user?._id;
     project.verifiedAt = new Date();
-    project.evaluatorRemarks = remarks || 'Impact verified on-site. Problem effectively resolved.';
+    project.evaluatorRemarks = resolutionNote;
     await project.save();
 
     // Convert verified project + solution into searchable historical knowledge.
     await createKnowledgeFromProject(project._id, req.user?._id);
 
-    // Mark problem report as RESOLVED
-    await ProblemReport.findByIdAndUpdate(project.problemReportId, { status: 'RESOLVED' });
+    // Mark the citizen's report as resolved and retain the full tracking audit.
+    const report = await ProblemReport.findById(project.problemReportId);
+    if (report) {
+      appendProblemStatus(
+        report,
+        'RESOLVED',
+        resolutionNote,
+        req.user?._id,
+      );
+      await report.save();
+
+      if (report.reportedBy) {
+        await createAndSendNotification({
+          recipientId: report.reportedBy,
+          title: 'Your Report Has Been Resolved!',
+          message: `The solution for your report "${report.title}" has been verified and the issue is marked resolved.`,
+          type: 'SUCCESS',
+          link: `/my-reports?reportId=${report._id}`,
+          metadata: { reportId: report._id.toString(), status: 'RESOLVED' },
+        });
+      }
+    }
 
     // Award 100 impact points to lead student and team members
     await User.findByIdAndUpdate(project.leadStudentId, { 

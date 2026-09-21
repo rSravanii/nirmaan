@@ -20,6 +20,7 @@ import { LoginPage } from './pages/LoginPage.js';
 import { RegisterPage } from './pages/RegisterPage.js';
 import { ExpertDashboard } from './pages/ExpertDashboard.js';
 import { CompanyDashboard } from './pages/CompanyDashboard.js';
+import { MyReportsPage } from './pages/MyReportsPage.js';
 
 export const App: React.FC = () => {
   return (
@@ -31,6 +32,7 @@ export const App: React.FC = () => {
               <Route element={<MainLayout />}>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/report" element={<ReportProblemPage />} />
+                <Route path="/my-reports" element={<MyReportsPage />} />
                 <Route path="/explore" element={<DiscoverProblemsPage />} />
                 <Route path="/problems/:id" element={<ProblemDetailsPage />} />
                 <Route path="/student" element={<StudentDashboard />} />

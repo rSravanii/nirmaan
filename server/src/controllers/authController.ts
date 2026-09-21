@@ -9,7 +9,9 @@ import { CompanyProfile } from '../models/CompanyProfile.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { logActivity } from '../utils/activity.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'gramutthan_super_secret_jwt_key_sih26043_2026';
+// Keep the development fallback aligned with authenticateToken. Production
+// startup already requires JWT_SECRET, so this is only for local demo mode.
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-nirmaan-secret-change-me';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 function generateToken(user: IUser): string {
