@@ -10,6 +10,7 @@
 
 ---
 
+DEPLOYED LINK : https://github.com/rSravanii/nirmaan.git
 ## What is Nirmaan?
 Nirmaan is a fully functioning, end-to-end civic-tech prototype engineered for the Government of Jharkhand. It bridges the gap between fragmented rural challenges and state university research institutions through a verified loop:
 
